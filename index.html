@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FBEBF3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1F1622" media="(prefers-color-scheme: dark)">
+<meta name="description" content="목표 월배당까지 몇 년, 주식 개수 늘리기로 몇 년 당겨지는지 계산해요.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="배당계산기">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+<title>배당 은퇴 계산기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+/* 레이아웃: 폰 한 손 앱 — 위 결과 카드, 가운데 그래프, 저장 목록, 아래 입력 카드들, 바닥 고정 요약 바 */
+:root {
+  --bg: #F7F5FB;
+  --wash1: #FBEBF3;
+  --wash2: #F2EFFD;
+  --card: #FFFFFF;
+  --ink: #15151C;
+  --muted: #6E7080;
+  --line: #E4E2EE;
+  --accent: #1F4FF5;
+  --accent-soft: #E8EDFF;
+  --band: #D3DDFF;
+  --plain: #A3A5B3;
+  --coral: #E5484D;
+  --good: #11845B;
+  --good-soft: #E3F5EC;
+  --shadow: 0 6px 20px rgba(60, 40, 120, .07);
+  --f-hand: "Nanum Pen Script", "Noto Sans KR", cursive;
+  --f-body: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101016; --wash1: #1F1622; --wash2: #17162B; --card: #1A1A24; --ink: #F1F0F7; --muted: #A2A3B4;
+    --line: #2C2B3B; --accent: #7091FF; --accent-soft: #1E2647; --band: #26315E; --plain: #6F7183; --coral: #FF6B6E;
+    --good: #3BC489; --good-soft: #13291F; --shadow: 0 6px 20px rgba(0, 0, 0, .35); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101016; --wash1: #1F1622; --wash2: #17162B; --card: #1A1A24; --ink: #F1F0F7; --muted: #A2A3B4;
+  --line: #2C2B3B; --accent: #7091FF; --accent-soft: #1E2647; --band: #26315E; --plain: #6F7183; --coral: #FF6B6E;
+  --good: #3BC489; --good-soft: #13291F; --shadow: 0 6px 20px rgba(0, 0, 0, .35); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: linear-gradient(180deg, var(--wash1) 0, var(--wash2) 340px, var(--bg) 640px) no-repeat, var(--bg);
+  color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.55;
+  -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums;
+}
+.app {
+  max-width: 480px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 120px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+header h1 { font-family: var(--f-hand); font-weight: 400; font-size: 44px; line-height: 1; margin: 6px 0 4px; letter-spacing: -.01em; text-wrap: balance; }
+header h1 em { font-style: normal; color: var(--accent); }
+header p { margin: 0; color: var(--muted); font-size: 13.5px; }
+
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px; box-shadow: var(--shadow); }
+.goal-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 99px; padding: 4px 11px; }
+.stock-name { font-size: 13px; color: var(--muted); font-weight: 500; }
+.stock-name b { color: var(--ink); font-weight: 700; }
+
+/* 결과 카드 */
+.result { display: flex; flex-direction: column; gap: 14px; }
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.race { display: grid; gap: 10px; }
+.lane { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 10px; }
+.lane .name { font-size: 13.5px; color: var(--muted); font-weight: 500; }
+.lane .yrs { font-weight: 900; font-size: 30px; letter-spacing: -.02em; line-height: 1.1; }
+.lane .yrs small { font-size: 16px; font-weight: 700; margin-left: 1px; }
+.lane .age { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); }
+.lane .bar { grid-column: 1 / -1; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.lane .bar i { display: block; height: 100%; border-radius: inherit; background: var(--plain); transition: width .4s ease; }
+.lane.b .yrs { color: var(--accent); }
+.lane.b .bar i { background: var(--accent); }
+.range { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); background: var(--bg); border-radius: 10px; padding: 7px 10px; }
+.range b { color: var(--ink); }
+.saved { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--good-soft); color: var(--good); border-radius: 14px; padding: 10px 14px; }
+.saved b { font-size: 22px; font-weight: 900; }
+.saved span { font-size: 13px; font-weight: 500; }
+.saved.none { background: var(--accent-soft); color: var(--muted); }
+
+/* 그래프 */
+.chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.chart-head h2 { margin: 0; font-size: 15px; font-weight: 700; }
+.legend { display: flex; gap: 10px; font-size: 11.5px; color: var(--muted); flex-wrap: wrap; }
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+.legend i.bandkey { height: 9px; background: var(--band); }
+svg { display: block; width: 100%; height: auto; }
+svg text { font-family: var(--f-body); font-size: 10px; fill: var(--muted); }
+
+/* 입력 */
+.group h3, .plans h3 { margin: 0 0 4px; font-family: var(--f-hand); font-weight: 400; font-size: 28px; line-height: 1.1; }
+.sub { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); }
+.field { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; padding: 11px 0; border-top: 1px solid var(--line); }
+.field.first { border-top: 0; }
+.field label, .field .lbl { font-size: 14px; font-weight: 500; min-width: 0; }
+.field .hint { grid-column: 1 / -1; font-size: 12px; color: var(--muted); margin-top: -2px; }
+.field .hint b { color: var(--accent); }
+.stepper { display: flex; align-items: center; gap: 4px; }
+.stepper button {
+  width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg);
+  color: var(--ink); font-size: 18px; line-height: 1; cursor: pointer; font-family: var(--f-body);
+}
+.stepper button:active { transform: scale(.94); }
+.stepper .box { display: flex; align-items: baseline; gap: 3px; background: var(--accent-soft); border-radius: 10px; padding: 5px 8px; }
+.stepper input {
+  width: 74px; border: 0; background: transparent; color: var(--accent); font: 700 16px var(--f-body);
+  text-align: right; font-variant-numeric: tabular-nums; padding: 0; outline: none;
+}
+.stepper .unit { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.namebox {
+  width: 196px; max-width: 100%; border: 0; border-radius: 10px; background: var(--accent-soft); color: var(--accent);
+  font: 700 16px var(--f-body); padding: 7px 10px; text-align: right; outline: none;
+}
+.namebox::placeholder { color: var(--muted); font-weight: 500; }
+.toggle { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+.toggle button { border: 0; background: transparent; color: var(--muted); font: 700 13px var(--f-body); padding: 6px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.toggle button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.toggle.wide { grid-column: 1 / -1; }
+.toggle.wide button { flex: 1; }
+.presets { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.presets button {
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 12px; padding: 8px 4px;
+  font: 700 14px var(--f-body); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.presets button small { font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.presets button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.presets button[aria-pressed="true"] small { color: var(--accent); }
+.explain { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); background: var(--bg); border-radius: 12px; padding: 10px 12px; line-height: 1.6; }
+.explain b { color: var(--ink); }
+button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.box:focus-within { box-shadow: 0 0 0 2px var(--accent); }
+
+/* 숫자 요약 */
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fact { background: var(--bg); border-radius: 14px; padding: 12px; min-width: 0; }
+.fact .k { font-size: 12px; color: var(--muted); }
+.fact .v { font-size: 17px; font-weight: 900; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.fact.hl .v { color: var(--accent); }
+
+/* 저장 목록 */
+.plans .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.primary { border: 0; background: var(--accent); color: #fff; font: 700 14px var(--f-body); padding: 9px 16px; border-radius: 99px; cursor: pointer; white-space: nowrap; }
+.status { font-size: 12.5px; color: var(--good); min-height: 1.2em; margin: 8px 0 0; }
+.status.err { color: var(--coral); }
+.plan-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.plan { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; background: var(--bg); border-radius: 14px; padding: 10px 12px; }
+.plan .t { font-weight: 700; font-size: 14.5px; min-width: 0; overflow-wrap: anywhere; }
+.plan .m { grid-column: 1; font-size: 12px; color: var(--muted); }
+.plan .btns { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 6px; }
+.plan .btns button { border: 1px solid var(--line); background: var(--card); color: var(--ink); font: 500 12.5px var(--f-body); padding: 6px 10px; border-radius: 99px; cursor: pointer; white-space: nowrap; }
+.plan .btns button.del { color: var(--muted); }
+.plan .btns button.del.arm { color: #fff; background: var(--coral); border-color: var(--coral); }
+.plan.cur { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.empty { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; }
+
+details summary { cursor: pointer; font-weight: 700; font-size: 14px; list-style: none; display: flex; justify-content: space-between; }
+details summary::after { content: "펼치기 ▾"; font-size: 12px; color: var(--muted); font-weight: 500; }
+details[open] summary::after { content: "접기 ▴"; }
+.tablewrap { overflow-x: auto; margin-top: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th, td { padding: 7px 6px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; font-size: 11.5px; }
+th:first-child, td:first-child { text-align: left; }
+td.b { color: var(--accent); font-weight: 700; }
+tr.hit td { background: var(--accent-soft); }
+
+.actions { display: flex; justify-content: center; }
+.ghost { border: 1px solid var(--line); background: var(--card); color: var(--muted); font: 500 13px var(--f-body); padding: 9px 16px; border-radius: 99px; cursor: pointer; }
+.note { font-size: 11.5px; color: var(--muted); line-height: 1.6; margin: 0; }
+
+/* 바닥 고정 요약 */
+.dock {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: 10px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--card) 92%, transparent); backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+}
+.dock .in { max-width: 480px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
+.dock .in span { color: var(--muted); }
+.dock .in b { color: var(--ink); }
+.dock .in b.acc { color: var(--accent); }
+.dock .in .pill { background: var(--good); color: #fff; font-weight: 700; border-radius: 99px; padding: 5px 11px; white-space: nowrap; }
+.dock .in .pill.none { background: var(--plain); }
+@media (prefers-reduced-motion: reduce) { .lane .bar i { transition: none; } }
+</style>
+</head>
+<body>
+
+
+<div class="app">
+  <header>
+    <span class="goal-chip">주식 개수 늘리기 · 계산기</span>
+    <h1>배당 <em>은퇴</em> 계산기</h1>
+    <p>숫자만 바꾸면 목표 월배당까지 몇 년 걸리는지, 개수 늘리기로 몇 년 당겨지는지 바로 나와요.</p>
+  </header>
+
+  <section class="card result" aria-live="polite">
+    <div class="chips">
+      <span class="goal-chip" id="goalChip">목표 월 300만 원 (세후)</span>
+      <span class="stock-name" id="stockName" hidden></span>
+    </div>
+    <div class="race">
+      <div class="lane a">
+        <span class="name">그냥 모으면</span><span class="yrs" id="yA">24<small>년</small></span>
+        <span class="bar"><i id="barA" style="width:100%"></i></span>
+        <span class="age" id="ageA">64세에 도달</span>
+      </div>
+      <div class="lane b">
+        <span class="name">개수 늘리기까지 하면</span><span class="yrs" id="yB">20<small>년</small></span>
+        <span class="bar"><i id="barB" style="width:83%"></i></span>
+        <span class="age" id="ageB">60세에 도달</span>
+        <span class="range" id="rangeB">개수가 덜 늘면 <b>22년</b> · 더 늘면 <b>19년</b></span>
+      </div>
+    </div>
+    <div class="saved" id="saved"><span>은퇴가</span><b id="savedV">4년 빨라져요</b></div>
+  </section>
+
+  <section class="card">
+    <div class="chart-head">
+      <h2>월 배당 (세후)</h2>
+      <div class="legend">
+        <span><i style="background:var(--plain)"></i>그냥</span>
+        <span><i style="background:var(--accent)"></i>개수 늘리기</span>
+        <span><i class="bandkey"></i>덜~더 늘 때</span>
+        <span><i style="background:var(--coral)"></i>목표</span>
+      </div>
+    </div>
+    <svg id="chart" viewBox="0 0 340 210" role="img" aria-label="연차별 월 배당 그래프"></svg>
+  </section>
+
+  <section class="card">
+    <div class="facts">
+      <div class="fact"><div class="k">필요한 주식 수 (지금 배당 기준)</div><div class="v" id="needShares">106,383주</div></div>
+      <div class="fact"><div class="k">필요한 원금 (지금 주가 기준)</div><div class="v" id="needMoney">10억 6,383만 원</div></div>
+      <div class="fact"><div class="k">지금 받는 월 배당 (세후)</div><div class="v" id="nowDiv">28,200원</div></div>
+      <div class="fact hl"><div class="k">20년 뒤 월 배당 (늘리기)</div><div class="v" id="laterV">334만 원</div></div>
+    </div>
+  </section>
+
+  <section class="card plans">
+    <div class="top">
+      <h3>내 계획</h3>
+      <button type="button" class="primary" id="savePlan">지금 숫자 저장</button>
+    </div>
+    <p class="sub" style="margin:2px 0 0">저장한 계획은 이 폰(브라우저)에만 남아요. 종목 이름이 계획 이름이 돼요.</p>
+    <p class="status" id="planStatus" role="status"></p>
+    <ul class="plan-list" id="planList"></ul>
+    <p class="empty" id="planEmpty">아직 저장한 계획이 없어요. 숫자를 바꾼 뒤 저장해 두면 언제든 다시 불러올 수 있어요.</p>
+  </section>
+
+  <section class="card group">
+    <h3>내 목표</h3>
+    <div class="field first"><label for="goal">목표 월 배당 (세후)</label>
+      <div class="stepper"><button type="button" data-for="goal" data-dir="-1" aria-label="줄이기">−</button><span class="box"><input id="goal" inputmode="decimal"><span class="unit">만 원</span></span><button type="button" data-for="goal" data-dir="1" aria-label="늘리기">+</button></div></div>
+    <div class="field"><label for="age">지금 나이</label>
+      <div class="stepper"><button type="button" data-for="age" data-dir="-1" aria-label="줄이기">−</button><span class="box"><input id="age" inputmode="numeric"><span class="unit">세</span></span><button type="button" data-for="age" data-dir="1" aria-label="늘리기">+</button></div></div>
+  </section>
+
+  <section class="card group">
+    <h3>지금 내 주식</h3>
+    <div class="field first"><label for="name">종목</label>
+      <input id="name" class="namebox" type="text" maxlength="24" placeholder="예) 내 배당주" autocomplete="off"></div>
+    <div class="field"><label for="shares">보유 수량</label>
+      <div class="stepper"><button type="button" data-for="shares" data-dir="-1" aria-label="줄이기">−</button><span class="box"><input id="shares" inputmode="decimal"><span class="unit">주</span></span><button type="button" data-for="shares" data-dir="1" aria-label="늘리기">+</button></div></div>
+    <div class="field"><label for="price">지금 주가</label>
+      <div class="stepper"><button type="button" data-for="price" data-dir="-1" aria-label="줄이기">−</button><span class="box"><input id="price" inputmode="decimal"><span class="unit">원</span></span><button type="button" data-for="price" data-dir="1" aria-label="늘리기">+</button></div></div>
+    <div class="field"><span class="lbl" id="divModeL">배당은 어떻게 넣을까요?</span>
+      <div class="toggle wide" role="group" aria-labelledby="divModeL">
+        <button type="button" id="dmYield" aria-pressed="true">배당률(%)로</button>
+        <button type="button" id="dmAmount" aria-pressed="false">받은 배당금으로</button>
+      </div></div>
+    <div class="field" id="yieldRow"><label for="yld">배당률 (1년, 세전)</label>
+      <div class="stepper"><button type="button" data-for="yld" data-dir="-1" aria-label="줄이기">−</button><span class="box"><input id="yld" inputmode="decimal"><span class="unit">%</span></span><button type="button" data-for="yld" data-dir="1" aria-label="늘리기">+</button></div>
+      <div class="hint">증권 앱 종목 화면의 '배당수익률'을 그대로 넣으면 돼요.</div></div>
+    <div class="field" id="amountRow" hidden><label for="perPay">한 번 받는 1주당 배당금</label>
+      <div class="stepper"><button type="button" data-for="perPay" data-dir="-1" aria-label="줄이기">−</button><span class="box"><input id="perPay" inputmode="decimal"><span class="unit">원</span></span><button type="button" data-for="perPay" data-dir="1" aria-label="늘리기">+</button></div>
+      <div class="hint">최근에 받은 배당 알림이나 입금 내역의 '1주당 배당금'이에요. (세전)</div></div>
+    <div class="field" id="freqRow" hidden><span class="lbl" id="freqL">얼마나 자주 받나요?</span>
+      <div class="toggle wide" role="group" aria-labelledby="freqL">
+        <button type="button" data-freq="52" aria-pressed="false">매주</button>
+        <button type="button" data-freq="12" aria-pressed="false">매달</button>
+        <button type="button" data-freq="4" aria-pressed="true">분기</button>
+        <button type="button" data-freq="2" aria-pressed="false">반기</button>
+        <button type="button" data-freq="1" aria-pressed="false">1년</button>
+      </div></div>
+    <div class="field" style="padding-top:0;border-top:0"><div class="hint" id="divHint">→ 1주당 1년 배당금 <b>400원</b> · 배당률 <b>4.0%</b></div></div>
+    <div class="field"><label for="monthly">매달 추가로 사는 금액</label>
+      <div class="stepper"><button type="button" data-for="monthly" data-dir="-1" aria-label="줄이기">−</button><span class="box"><input id="monthly" inputmode="decimal"><span class="unit">만 원</span></span><button type="button" data-for="monthly" data-dir="1" aria-label="늘리기">+</button></div></div>
+  </section>
+
+  <section class="card group">
+    <h3>앞으로 가정</h3>
+    <p class="sub">미래는 알 수 없으니 보수적으로 넣으세요.</p>
+    <div class="field first"><label for="dg">배당 성장률 (1년)</label>
+      <div class="stepper"><button type="button" data-for="dg" data-dir="-1" aria-label="줄이기">−</button><span class="box"><input id="dg" inputmode="decimal"><span class="unit">%</span></span><button type="button" data-for="dg" data-dir="1" aria-label="늘리기">+</button></div></div>
+    <div class="field"><label for="pg">주가 상승률 (1년)</label>
+      <div class="stepper"><button type="button" data-for="pg" data-dir="-1" aria-label="줄이기">−</button><span class="box"><input id="pg" inputmode="decimal"><span class="unit">%</span></span><button type="button" data-for="pg" data-dir="1" aria-label="늘리기">+</button></div></div>
+    <div class="field"><label for="tax">배당소득세</label>
+      <div class="stepper"><button type="button" data-for="tax" data-dir="-1" aria-label="줄이기">−</button><span class="box"><input id="tax" inputmode="decimal"><span class="unit">%</span></span><button type="button" data-for="tax" data-dir="1" aria-label="늘리기">+</button></div>
+      <div class="hint">일반 계좌 15.4%. 연금저축·ISA 등은 다를 수 있어요.</div></div>
+    <div class="field"><span class="lbl" id="reinvestL">받은 배당으로 다시 사기</span>
+      <div class="toggle" role="group" aria-labelledby="reinvestL"><button type="button" id="riY" aria-pressed="true">예</button><button type="button" id="riN" aria-pressed="false">아니오</button></div></div>
+  </section>
+
+  <section class="card group">
+    <h3>개수 늘리기</h3>
+    <p class="sub">오를 때 일부 팔고, 내릴 때 다시 사서 주식 개수를 늘리는 방법이에요.</p>
+    <div class="field first"><span class="lbl" id="boostL">1년에 개수가 평균 얼마나 늘까요?</span>
+      <div class="presets" role="group" aria-labelledby="boostL">
+        <button type="button" data-boost="low" aria-pressed="false">조금<small>+2%/년</small></button>
+        <button type="button" data-boost="mid" aria-pressed="true">보통<small>+4%/년</small></button>
+        <button type="button" data-boost="high" aria-pressed="false">많이<small>+6%/년</small></button>
+        <button type="button" data-boost="custom" aria-pressed="false">직접<small id="customSmall">입력</small></button>
+      </div></div>
+    <div class="field" id="boostRow" hidden><label for="boost">1년 평균 늘어나는 개수</label>
+      <div class="stepper"><button type="button" data-for="boost" data-dir="-1" aria-label="줄이기">−</button><span class="box"><input id="boost" inputmode="decimal"><span class="unit">%</span></span><button type="button" data-for="boost" data-dir="1" aria-label="늘리기">+</button></div></div>
+    <div class="field" style="border-top:0;padding-top:4px">
+      <div class="explain" id="boostExplain">사고파는 횟수도, 한 번에 늘어나는 개수도 해마다 달라요. 그래서 <b>1년 평균</b>으로 봐요. 예) 1,000주가 1년 뒤 1,040주면 +4%. 계속 오르기만 하는 해엔 거의 못 늘고, 오르내림이 큰 해엔 많이 늘어요. 결과에는 이보다 절반만 늘 때와 1.5배 늘 때도 같이 보여 드려요.</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <details id="yearly">
+      <summary>연도별로 보기</summary>
+      <div class="tablewrap"><table>
+        <thead><tr><th>연차</th><th>나이</th><th>그냥 월 배당</th><th>늘리기 월 배당</th><th>늘리기 보유</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+    </details>
+  </section>
+
+  <div class="actions"><button type="button" class="ghost" id="reset">예시 숫자로 되돌리기</button></div>
+  <p class="note">처음 보이는 숫자는 예시예요. 매년 주가·배당이 입력한 비율대로 꾸준히 오르고, 개수도 1년 평균만큼 늘어난다고 단순하게 계산하며, 수수료와 매매 세금은 빼고 계산했어요. 실제 주가와 배당, 늘어나는 개수는 매년 다르고, 미래 수익을 보장하지 않아요. 특정 종목의 매수·매도를 권유하지 않으며, 투자 판단과 결과의 책임은 본인에게 있어요.</p>
+</div>
+
+<div class="dock" aria-hidden="true">
+  <div class="in">
+    <span>그냥 <b id="dA">24년</b> · 늘리기 <b class="acc" id="dB">20년</b></span>
+    <span class="pill" id="dP">4년 빨라짐</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  var DEF = { name: '', goal: 300, age: 40, shares: 1000, price: 10000, divMode: 'yield', yld: 4, perPay: 100, freq: 4,
+              monthly: 100, dg: 5, pg: 4, tax: 15.4, reinvest: true, boostMode: 'mid', boost: 4 };
+  var STEP = { goal: 10, age: 1, shares: 100, price: 500, yld: 0.1, perPay: 10, monthly: 10, dg: 0.5, pg: 0.5, tax: 0.1, boost: 0.5 };
+  var PRESET = { low: 2, mid: 4, high: 6 };
+  var MAXY = 40, KEY = 'dividend-retire-calc-v1', PLANS = 'dividend-retire-plans-v1';
+  var S = Object.assign({}, DEF);
+
+  // 저장소: 이 브라우저에만 저장. 막혀 있으면(사생활 보호 모드 등) 조용히 넘어감
+  function load(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+  function store(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+  function migrate(o) {                       // 예전 판(1주당 배당금·굴리는 횟수)으로 저장한 값 옮기기
+    o = Object.assign({}, o);
+    if (o.yld == null && o.dps != null) { o.yld = o.price > 0 ? Math.round(o.dps / o.price * 1000) / 10 : DEF.yld; o.divMode = 'yield'; }
+    if (o.boost == null && o.roll != null) {
+      o.boost = Math.round((o.roll * (o.times || 0) * (o.gain || 0) / 100) * 10) / 10;
+      o.boostMode = 'custom';
+      for (var p in PRESET) if (PRESET[p] === o.boost) o.boostMode = p;
+    }
+    delete o.dps; delete o.roll; delete o.times; delete o.gain;
+    return Object.assign({}, DEF, o);
+  }
+  var saved0 = load(KEY); if (saved0) S = migrate(saved0);
+
+  var $ = function (id) { return document.getElementById(id); };
+  var fields = Object.keys(STEP);
+
+  function num(v) { var n = parseFloat(String(v).replace(/,/g, '')); return isFinite(n) ? n : 0; }
+  function fmtNum(n) { return n.toLocaleString('ko-KR', { maximumFractionDigits: Math.abs(n) < 100 ? 2 : 0 }); }
+  function won(n) {
+    n = Math.round(n);
+    if (Math.abs(n) >= 1e8) {
+      var eok = Math.floor(n / 1e8), man = Math.round((n % 1e8) / 1e4);
+      if (man === 10000) { eok += 1; man = 0; }
+      return eok.toLocaleString('ko-KR') + '억' + (man ? ' ' + man.toLocaleString('ko-KR') + '만' : '') + ' 원';
+    }
+    if (Math.abs(n) >= 1e5) return Math.round(n / 1e4).toLocaleString('ko-KR') + '만 원';
+    return n.toLocaleString('ko-KR') + '원';
+  }
+  function manWon(n) {
+    if (n === 0) return '0';
+    if (n >= 1e8) return (Math.round(n / 1e7) / 10).toLocaleString('ko-KR') + '억';
+    return (Math.round(n / 1e3) / 10).toLocaleString('ko-KR') + '만';
+  }
+  function dps(s) { return s.divMode === 'amount' ? s.perPay * s.freq : s.price * s.yld / 100; }
+  function boostOf(s) { return s.boostMode === 'custom' ? s.boost : PRESET[s.boostMode]; }
+
+  function simulate(s, boostPct) {
+    var t = s.tax / 100, x = boostPct / 100, d0 = dps(s);
+    var A = s.shares, B = s.shares, out = [];
+    for (var y = 0; y <= MAXY; y++) {
+      var P = s.price * Math.pow(1 + s.pg / 100, y), D = d0 * Math.pow(1 + s.dg / 100, y);
+      if (y > 0 && P > 0) {
+        var buy = s.monthly * 1e4 * 12 / P;
+        var nA = A + buy + (s.reinvest ? A * D * (1 - t) / P : 0);
+        var nB = B + buy + (s.reinvest ? B * D * (1 - t) / P : 0) + B * x;
+        A = nA; B = nB;
+      }
+      out.push({ y: y, A: A, B: B, mA: A * D * (1 - t) / 12, mB: B * D * (1 - t) / 12 });
+    }
+    return out;
+  }
+  function reach(rows, k, goal) { for (var i = 0; i < rows.length; i++) if (rows[i][k] >= goal) return rows[i].y; return null; }
+  function yrsText(y) { return y == null ? '40년+' : y === 0 ? '바로' : y + '년'; }
+
+  function drawChart(rows, lo, hi, goal, ya, yb) {
+    var end = Math.min(MAXY, Math.max(ya == null ? MAXY : ya, yb == null ? MAXY : yb) + 6);
+    end = Math.max(end, 10);
+    var data = rows.slice(0, end + 1), dLo = lo.slice(0, end + 1), dHi = hi.slice(0, end + 1);
+    var raw = Math.max(goal * 1.25, data[data.length - 1].mB, 1) / 4;
+    var mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    var top = 4 * [1, 2, 2.5, 5, 10].map(function (m) { return m * mag; }).filter(function (v) { return v >= raw; })[0];
+    var W = 340, H = 210, L = 44, R = 10, T = 12, Bm = 26;
+    var sx = function (y) { return L + (W - L - R) * y / end; };
+    var sy = function (v) { return T + (H - T - Bm) * (1 - Math.min(v, top) / top); };
+    var pts = function (arr, key) { return arr.map(function (r) { return sx(r.y).toFixed(1) + ' ' + sy(r[key]).toFixed(1); }); };
+    var parts = [];
+    for (var i = 0; i <= 4; i++) {
+      var v = top * i / 4, yy = sy(v);
+      parts.push('<line x1="' + L + '" x2="' + (W - R) + '" y1="' + yy + '" y2="' + yy + '" stroke="var(--line)" stroke-width="1"/>');
+      parts.push('<text x="' + (L - 6) + '" y="' + (yy + 3) + '" text-anchor="end">' + manWon(v) + '</text>');
+    }
+    var step = end <= 20 ? 5 : 10;
+    for (var k = 0; k <= end; k += step) parts.push('<text x="' + sx(k) + '" y="' + (H - 8) + '" text-anchor="middle">' + k + '년</text>');
+    var band = 'M' + pts(dHi, 'mB').join(' L') + ' L' + pts(dLo, 'mB').reverse().join(' L') + ' Z';
+    parts.push('<path d="' + band + '" fill="var(--band)" stroke="none" opacity=".9"/>');
+    parts.push('<line x1="' + L + '" x2="' + (W - R) + '" y1="' + sy(goal) + '" y2="' + sy(goal) + '" stroke="var(--coral)" stroke-width="1.5" stroke-dasharray="5 4"/>');
+    parts.push('<path d="M' + pts(data, 'mA').join(' L') + '" fill="none" stroke="var(--plain)" stroke-width="2.2" stroke-linejoin="round"/>');
+    parts.push('<path d="M' + pts(data, 'mB').join(' L') + '" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linejoin="round"/>');
+    if (ya != null && ya <= end) parts.push('<circle cx="' + sx(ya) + '" cy="' + sy(goal) + '" r="4.5" fill="var(--card)" stroke="var(--plain)" stroke-width="2.2"/>');
+    if (yb != null && yb <= end) {
+      parts.push('<circle cx="' + sx(yb) + '" cy="' + sy(goal) + '" r="5" fill="var(--accent)" stroke="var(--card)" stroke-width="2"/>');
+      var lx = Math.min(Math.max(sx(yb), L + 24), W - R - 24);
+      parts.push('<text x="' + lx + '" y="' + (sy(goal) - 9) + '" text-anchor="middle" style="fill:var(--accent);font-weight:700">' + yb + '년</text>');
+    }
+    $('chart').innerHTML = parts.join('');
+  }
+
+  function results(s) {
+    var goal = s.goal * 1e4, bp = boostOf(s);
+    var rows = simulate(s, bp), lo = simulate(s, bp * 0.5), hi = simulate(s, bp * 1.5);
+    return { goal: goal, bp: bp, rows: rows, lo: lo, hi: hi,
+      ya: reach(rows, 'mA', goal), yb: reach(rows, 'mB', goal), ylo: reach(lo, 'mB', goal), yhi: reach(hi, 'mB', goal) };
+  }
+
+  function render() {
+    var r = results(S), rows = r.rows, ya = r.ya, yb = r.yb, goal = r.goal, t = S.tax / 100, d = dps(S);
+    $('goalChip').textContent = '목표 월 ' + won(goal) + ' (세후)';
+    var nm = (S.name || '').trim(), sn = $('stockName');
+    sn.hidden = !nm; sn.textContent = '';
+    if (nm) { sn.appendChild(document.createTextNode('종목 ')); var bb = document.createElement('b'); bb.textContent = nm; sn.appendChild(bb); }
+    document.title = nm ? nm + ' · 배당 은퇴 계산기' : '배당 은퇴 계산기';
+
+    var big = function (y) { return y == null ? '40년+' : y === 0 ? '바로' : y + '<small>년</small>'; };
+    $('yA').innerHTML = big(ya); $('yB').innerHTML = big(yb);
+    var ageText = function (y) { return y == null ? '40년 안에는 어려워요' : y === 0 ? '이미 목표에 닿았어요' : (S.age + y) + '세에 도달'; };
+    $('ageA').textContent = ageText(ya); $('ageB').textContent = ageText(yb);
+    var scale = Math.max(ya == null ? MAXY : ya, yb == null ? MAXY : yb, 1);
+    $('barA').style.width = (100 * (ya == null ? MAXY : ya) / scale) + '%';
+    $('barB').style.width = (100 * (yb == null ? MAXY : yb) / scale) + '%';
+    var rg = $('rangeB');
+    rg.hidden = !(r.bp > 0);
+    rg.innerHTML = '개수가 덜 늘면(연 +' + fmtNum(r.bp / 2) + '%) <b>' + yrsText(r.ylo) + '</b> · 더 늘면(연 +' + fmtNum(r.bp * 1.5) + '%) <b>' + yrsText(r.yhi) + '</b>';
+
+    var diff = (ya != null && yb != null) ? ya - yb : (ya == null && yb != null ? null : 0);
+    var sv = $('saved'), pill = $('dP');
+    if (diff === null) { sv.className = 'saved'; $('savedV').textContent = '40년 넘게 → ' + yb + '년으로'; pill.className = 'pill'; pill.textContent = '크게 빨라짐'; }
+    else if (diff > 0) { sv.className = 'saved'; $('savedV').textContent = diff + '년 빨라져요'; pill.className = 'pill'; pill.textContent = diff + '년 빨라짐'; }
+    else { sv.className = 'saved none'; $('savedV').textContent = '차이가 없어요'; pill.className = 'pill none'; pill.textContent = '차이 없음'; }
+    $('dA').textContent = yrsText(ya); $('dB').textContent = yrsText(yb);
+
+    var netD = d * (1 - t);
+    var need = netD > 0 ? Math.ceil(goal * 12 / netD) : 0;
+    $('needShares').textContent = need ? need.toLocaleString('ko-KR') + '주' : '-';
+    $('needMoney').textContent = need ? won(need * S.price) : '-';
+    $('nowDiv').textContent = won(S.shares * netD / 12);
+    $('laterV').textContent = won(rows[20].mB);
+    $('divHint').innerHTML = '→ 1주당 1년 배당금 <b>' + won(d) + '</b> · 배당률 <b>' + (S.price > 0 ? (100 * d / S.price).toFixed(1) : '0') + '%</b>';
+
+    var html = '';
+    rows.forEach(function (x) {
+      html += '<tr' + (x.y === yb || x.y === ya ? ' class="hit"' : '') + '><td>' + x.y + '년</td><td>' + (S.age + x.y) + '세</td><td>' +
+        won(x.mA) + '</td><td class="b">' + won(x.mB) + '</td><td>' + Math.round(x.B).toLocaleString('ko-KR') + '주</td></tr>';
+    });
+    $('rows').innerHTML = html;
+    drawChart(rows, r.lo, r.hi, goal, ya, yb);
+    store(KEY, S);
+  }
+
+  function setPressed(nodes, test) { nodes.forEach(function (b) { b.setAttribute('aria-pressed', test(b) ? 'true' : 'false'); }); }
+  function fill() {
+    fields.forEach(function (k) { $(k).value = fmtNum(S[k]); });
+    $('name').value = S.name || '';
+    setPressed([$('riY')], function () { return S.reinvest; }); setPressed([$('riN')], function () { return !S.reinvest; });
+    setPressed([$('dmYield')], function () { return S.divMode !== 'amount'; }); setPressed([$('dmAmount')], function () { return S.divMode === 'amount'; });
+    $('yieldRow').hidden = S.divMode === 'amount'; $('amountRow').hidden = $('freqRow').hidden = S.divMode !== 'amount';
+    setPressed(document.querySelectorAll('[data-freq]'), function (b) { return +b.getAttribute('data-freq') === S.freq; });
+    setPressed(document.querySelectorAll('[data-boost]'), function (b) { return b.getAttribute('data-boost') === S.boostMode; });
+    $('boostRow').hidden = S.boostMode !== 'custom';
+    $('customSmall').textContent = S.boostMode === 'custom' ? '+' + fmtNum(S.boost) + '%/년' : '입력';
+  }
+
+  fields.forEach(function (k) {
+    var el = $(k);
+    el.addEventListener('input', function () { S[k] = Math.max(0, num(el.value)); if (k === 'boost') $('customSmall').textContent = '+' + fmtNum(S.boost) + '%/년'; render(); });
+    el.addEventListener('blur', function () { el.value = fmtNum(S[k]); });
+    el.addEventListener('focus', function () { el.select && el.select(); });
+  });
+  document.querySelectorAll('.stepper button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var k = b.getAttribute('data-for'), dir = +b.getAttribute('data-dir');
+      S[k] = Math.max(0, Math.round((S[k] + dir * STEP[k]) * 100) / 100);
+      $(k).value = fmtNum(S[k]); if (k === 'boost') $('customSmall').textContent = '+' + fmtNum(S.boost) + '%/년';
+      render();
+    });
+  });
+  $('name').addEventListener('input', function () { S.name = $('name').value; render(); });
+  $('riY').addEventListener('click', function () { S.reinvest = true; fill(); render(); });
+  $('riN').addEventListener('click', function () { S.reinvest = false; fill(); render(); });
+  $('dmYield').addEventListener('click', function () {
+    if (S.divMode === 'amount' && S.price > 0) S.yld = Math.round(dps(S) / S.price * 1000) / 10;   // 지금 값 이어받기
+    S.divMode = 'yield'; fill(); render();
+  });
+  $('dmAmount').addEventListener('click', function () {
+    if (S.divMode !== 'amount') S.perPay = Math.round(dps(S) / S.freq);
+    S.divMode = 'amount'; fill(); render();
+  });
+  document.querySelectorAll('[data-freq]').forEach(function (b) {
+    b.addEventListener('click', function () { S.freq = +b.getAttribute('data-freq'); fill(); render(); });
+  });
+  document.querySelectorAll('[data-boost]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var m = b.getAttribute('data-boost');
+      if (m === 'custom' && S.boostMode !== 'custom') S.boost = boostOf(S);
+      S.boostMode = m; fill(); render();
+    });
+  });
+  $('reset').addEventListener('click', function () { var keep = S.name; S = Object.assign({}, DEF); S.name = keep; fill(); render(); });
+
+  // 내 계획: 여러 개 저장·불러오기·삭제 (이 브라우저에만)
+  var plans = load(PLANS) || [], current = null, armed = null;
+  function say(msg, err) { var el = $('planStatus'); el.textContent = msg; el.className = 'status' + (err ? ' err' : ''); }
+  function renderPlans() {
+    var ul = $('planList'); ul.innerHTML = '';
+    $('planEmpty').hidden = plans.length > 0;
+    plans.forEach(function (p) {
+      var r = results(migrate(p.s));
+      var li = document.createElement('li'); li.className = 'plan' + (p.id === current ? ' cur' : '');
+      var t = document.createElement('div'); t.className = 't'; t.textContent = p.title;
+      var m = document.createElement('div'); m.className = 'm';
+      m.textContent = '목표 월 ' + won(r.goal) + ' · 그냥 ' + yrsText(r.ya) + ' → 늘리기 ' + yrsText(r.yb);
+      var btns = document.createElement('div'); btns.className = 'btns';
+      var ld = document.createElement('button'); ld.type = 'button'; ld.textContent = '불러오기';
+      ld.addEventListener('click', function () { S = migrate(p.s); current = p.id; armed = null; fill(); render(); renderPlans(); say('‘' + p.title + '’ 계획을 불러왔어요.'); });
+      var del = document.createElement('button'); del.type = 'button'; del.className = 'del' + (armed === p.id ? ' arm' : '');
+      del.textContent = armed === p.id ? '한 번 더' : '삭제';
+      del.addEventListener('click', function () {
+        if (armed !== p.id) { armed = p.id; renderPlans(); say('한 번 더 누르면 ‘' + p.title + '’ 계획을 지워요.'); return; }
+        plans = plans.filter(function (q) { return q.id !== p.id; });
+        if (current === p.id) current = null;
+        armed = null; store(PLANS, plans); renderPlans(); say('‘' + p.title + '’ 계획을 지웠어요.');
+      });
+      btns.appendChild(ld); btns.appendChild(del);
+      li.appendChild(t); li.appendChild(btns); li.appendChild(m); ul.appendChild(li);
+    });
+  }
+  $('savePlan').addEventListener('click', function () {
+    var title = (S.name || '').trim() || ('내 계획 ' + (plans.length + 1));
+    var same = plans.filter(function (p) { return p.title === title; })[0];
+    var snap = JSON.parse(JSON.stringify(S));
+    if (same) { same.s = snap; same.at = Date.now(); current = same.id; }
+    else { var id = 'p' + Date.now(); plans.unshift({ id: id, title: title, s: snap, at: Date.now() }); current = id; }
+    armed = null;
+    if (store(PLANS, plans)) say(same ? '‘' + title + '’ 계획을 새 숫자로 바꿔 저장했어요.' : '‘' + title + '’ 계획을 저장했어요.');
+    else say('이 브라우저에서는 저장이 막혀 있어요. 사생활 보호(시크릿) 모드가 아닌 창에서 열어 주세요.', true);
+    renderPlans();
+  });
+
+  window.__calc = { simulate: simulate, reach: reach, results: results, DEF: DEF, migrate: migrate };
+  fill(); render(); renderPlans();
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js?v=4').catch(function () {}); });
+}
+</script>
+</body>
+</html>
