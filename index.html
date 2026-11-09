@@ -123,6 +123,16 @@ header p { margin: 0; color: var(--muted); font-size: 16px; }
 .fill { height: 100%; min-width: 4px; border-radius: inherit; background: var(--accent); transition: width .3s ease; }
 .pct { margin-top: 4px; font-size: 16px; color: var(--muted); text-align: right; }
 .foot { margin: 2px 2px 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+/* 홈 화면 추가 안내: 기록표 앱과 같은 모양 */
+:root { --warn-soft: #FFF4D6; --warn: #8A5A00; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --warn-soft: #33290F; --warn: #F0C466; } }
+:root[data-theme="dark"] { --warn-soft: #33290F; --warn: #F0C466; }
+.notice { border-radius: 18px; padding: 14px 16px; font-size: 16.5px; line-height: 1.5; background: var(--accent-soft); }
+.notice .ttl { display: block; font-size: 18px; font-weight: 900; margin-bottom: 2px; }
+.notice.warn { background: var(--warn-soft); color: var(--warn); }
+.notice-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.notice-actions button { min-height: 48px; padding: 0 16px; border-radius: 14px; border: 0; background: var(--accent); color: var(--on-accent); font-size: 17px; font-weight: 700; cursor: pointer; }
+.notice-actions button.plain { background: transparent; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
 :root[data-theme="light"] { color-scheme: light; }
 .theme-switch {
@@ -145,6 +155,7 @@ header p { margin: 0; color: var(--muted); font-size: 16px; }
     <h1>배당 <em>은퇴</em> 계산기</h1>
     <p id="intro">예시 숫자예요. 내 숫자로 바꿔 보세요.</p>
   </header>
+  <div id="installNote" hidden></div>
 
   <div class="field"><label for="goal">한 달에 얼마 받고 싶어요?</label>
     <div class="input-wrap"><input id="goal" inputmode="decimal" autocomplete="off"><span class="unit">만 원</span></div></div>
@@ -311,12 +322,41 @@ header p { margin: 0; color: var(--muted); font-size: 16px; }
     S[k] = Math.min(+el.max, Math.max(+el.min, S[k] + (+b.dataset.dir))); S.edited = true; render();
   });
   render();
+
+  /* 홈 화면 추가 안내 (기록표 앱과 같은 방식). 앱으로 열었거나 닫기를 누르면 보이지 않는다. */
+  var NOTE_KEY = 'dividend-install-note-off', noteClosed = false, installEvt = null;
+  var ua = navigator.userAgent;
+  var isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var isInApp = /Instagram|FBAN|FBAV|KAKAOTALK|NAVER\(|Line\//i.test(ua);
+  try { noteClosed = localStorage.getItem(NOTE_KEY) === '1'; } catch (e) {}
+  function isStandalone() { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
+  function closeNote() { noteClosed = true; try { localStorage.setItem(NOTE_KEY, '1'); } catch (e) {} showInstall(); }
+  function installHTML() {
+    if (isStandalone()) return '';
+    if (isInApp) return '<div class="notice warn"><b class="ttl">지금은 앱 안의 브라우저예요</b>여기에 넣은 숫자는 사라질 수 있어요. 메뉴(⋯)에서 ' + (isIOS ? 'Safari' : 'Chrome') + '로 열어 주세요.</div>';
+    if (noteClosed) return '';
+    var how = isIOS ? 'Safari 아래쪽 공유 버튼 → <b>홈 화면에 추가</b>를 눌러 주세요. 그 뒤 홈 화면 아이콘으로 열어 주세요.'
+      : (installEvt ? '폰에 앱처럼 설치하면 아이콘 하나로 바로 열려요.' : '브라우저 메뉴(⋮) → <b>홈 화면에 추가</b>를 눌러 주세요.');
+    return '<div class="notice"><b class="ttl">먼저 홈 화면에 추가하세요</b>' + how + ' 입력한 숫자도 더 안전하게 남아요.' +
+      '<div class="notice-actions">' + (installEvt ? '<button type="button" id="doInstall">앱으로 설치</button>' : '') + '<button type="button" class="plain" id="noteClose">닫기</button></div></div>';
+  }
+  function showInstall() { var box = $('installNote'); box.innerHTML = installHTML(); box.hidden = !box.innerHTML; }
+  $('installNote').addEventListener('click', function (e) {
+    if (e.target.id === 'noteClose') closeNote();
+    if (e.target.id === 'doInstall' && installEvt) {
+      installEvt.prompt();
+      installEvt.userChoice.then(function (c) { installEvt = null; if (c.outcome === 'accepted') closeNote(); else showInstall(); });
+    }
+  });
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvt = e; showInstall(); });
+  window.addEventListener('appinstalled', closeNote);
+  showInstall();
 })();
 </script>
 
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js?v=10').catch(function () {}); });
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js?v=11').catch(function () {}); });
 }
 </script>
 </body>
